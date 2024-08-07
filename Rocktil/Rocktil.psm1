@@ -15,9 +15,10 @@ $script:ModuleConfig = @{
 function Rocktil.Container.First {
     <#
     .SYNOPSIS
-        get the first container without filtering. return by object else id
+        get the first container without filtering. return by object (else drill into Name/Id)
     #>
     [Alias('Rk.Container.First')]
+    [CmdletBinding()]
     param(
         [Alias('Id')]
         [switch] $AsIdName,
@@ -26,22 +27,25 @@ function Rocktil.Container.First {
         [switch] $AsImageName
     )
     $query = docker container ls | Select -first 1
-    if( $AsIdName ) { return $query.Id }
-    if( $AsImageName ) { return $query.Image }
+    if( $AsIdName ) {       return $query.Id    }
+    if( $AsImageName ) {    return $query.Image }
     return $query
 }
 function Rocktil.Container.FromName {
     <#
     .SYNOPSIS
-        returns container id as [string]
+        returns first match, unless using -ListAll
     #>
+    [OutputType('docker.container.ls')]
     [Alias(
         'Rk.Container.From',
         'Rk.FromName'
     )]
+    [CmdletBinding()]
     param(
         # Uses first if not specified
         [ArgumentCompletions('git-logger')]
+        # [ArgCompleterDockerContainerName( FilterState = 'running')] # todo future: (#1)
         [string] $ContainerName = (
             $script:ModuleConfig.Default.ContainerName ?? 'git-logger'),
 
@@ -71,10 +75,58 @@ function Rocktil.Container.FromName {
     return $query
 }
 
-# function Rocktil.ContainerId.FromName {
-#     param( [string] $Name = 'git-logger' )
-# }
-# Docker.ContainerId.FromName -Name 'git-logger'
+function Rocktil.Container.CopyTo {
+    <#
+    .SYNOPSIS
+        copies files or folders to a running docker container. uses docker sytax: "docker cp source label:destPath"
+    #>
+    param(
+        # file or folder to copy
+        [Parameter(Mandatory)]
+        [string] $Source,
+
+        [ArgumentCompletions('git-logger')]
+        # [ArgCompleterDockerContainerName( FilterState = 'running')] # todo future: (#1)
+        [string] $ContainerName = (
+            $script:ModuleConfig.Default.ContainerName ?? 'git-logger'),
+
+        # absolute path on destination
+        [Parameter(Mandatory)]
+        [ArgumentCompletions(
+            '/Repos',
+            '/tmp'
+        )]
+        [string] $DestinationPath,
+
+        # print final command but do not run iT.used to double check source and dest paths are correct
+        [switch]$WhatIf
+
+    )
+
+    $dockContainer = Rocktil.Container.FromName -ContainerName  $ContainerName -ea 'Stop'
+    $sourceItem    = Get-Item -ea 'stop' $Source
+    $destTemplate  = '{0}:{1}' -f @(
+        $dockContainer.Id # or .ContainerID
+        $DestinationPath
+    )
+
+    [List[Object]] $BinArgs = @(
+        'cp'
+        $sourceItem
+        $destTemplate
+    )
+    $logMsg = $binArgs | Join-String -op 'invoke => docker '
+
+
+    if( $WhatIf ) {
+        $logMsg | write-host -fore 'salmon'
+        return
+    }
+
+    $logMsg | Write-Verbose
+    docker @binArgs
+}
+
 
 $exportModuleMemberSplat = @{
     Function = @(
@@ -84,7 +136,7 @@ $exportModuleMemberSplat = @{
         $ExportMemberPatterns
     )
     Variable = @(
-        'Docktil'
+        'Rocktil'
     )
 }
 
