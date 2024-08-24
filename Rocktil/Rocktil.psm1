@@ -78,7 +78,17 @@ function WriteHost {
     }
     process {
         $colorPair = GetColorPair -Theme $Theme
-        $InputObject | Write-Host @ColorPair
+        switch( $Theme ) {
+            'Dim' { # also predent this theme
+                $InputObject
+                    | Join-String -f '    {0}'
+                    | Write-Host @colorPair
+                break
+            }
+            default {
+                $InputObject | Write-Host @ColorPair
+            }
+        }
     }
 }
 
@@ -93,7 +103,10 @@ function Rocktil.Container.Ls {
     [CmdletBinding()]
     param()
 
-    docker container ls | CountOf -CountLabel 'Running: '
+    $query = docker container ls
+        | CountOf -CountLabel 'Containers Running: '
+
+    $query
 }
 function Rocktil.Container.StopAll {
     <#
@@ -104,13 +117,21 @@ function Rocktil.Container.StopAll {
     [CmdletBinding()]
     param()
 
-    docker container ls
-        | CountOf -CountLabel 'Running:'
-        | docker container stop
+    $existing =
+        docker container ls
+
+    if( $Existing.count -gt 0 ) {
+        $null = # out: stoppedIds
+            $Existing
+                | CountOf -CountLabel 'Found Running:'
+                | docker container stop
+
+    }
 
     # hr
-    docker container ls
-        | OutNull -CountLabel 'Running After:'
+    $stoppedId =
+        $exising | docker container ls
+            | CountOf -CountLabel 'Running After:'
 }
 
 function Rocktil.Container.First {
@@ -277,6 +298,9 @@ function Rocktil.Run.Publish {
             - If the same image name is already running a copy, stop it
             - after launching, show Toast notification. Click to open.
     .EXAMPLE
+        # Using default ports
+        > Rk.Run.Publish -ImageName git-logger
+    .EXAMPLE
         # Using -WhatIf to test whether arguments are correct
         > Rocktil.Run.Publish -WhatIf -Port 8081 81 -ImageName git-logger
             Invoke Cmd => docker run --detach --publish 8081:81 git-logger
@@ -323,13 +347,13 @@ function Rocktil.Run.Publish {
     if( $WhatIf ) { return }
 
     if( -not $NeverStopExistingContainers ) {
-        $existing =
+        $existingIds = # out: runningIds
             docker container ls
                 | ?{ $_.Image -eq $ImageName }
 
-        if( $existing ) {
-            $null =
-                $existing
+        if( $existingIds ) {
+            $null = # out: stoppedIds
+                $existingIds
                     | CountOf -Label "Stopping Containers of '$ImageName'"
                     | docker container stop
         }
