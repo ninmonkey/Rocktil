@@ -295,13 +295,17 @@ function Rocktil.Run.Publish {
         [ArgumentCompletions('git-logger', 'git-logger-pwsh', 'pssvg')]
         [string] $ImageName,
 
+        # never show toast?
+        [Alias('NoToastStatus')]
+        [switch] $WithoutToast,
+
         # Do Not run, display the command line arguments that would be used and quit.
         [switch] $WhatIf
     )
     [string] $portArg = "${Port}:${InternalPort}"
 
     [List[Object]] $binArgs = @(
-        'run', '--detach', '--publish', $PortArg, $Tag, $ImageName )
+        'run', '--detach', '--publish', $PortArg, $ImageName )
 
     $binArgs
         | Join-String -op 'Invoke Cmd => docker ' -sep ' '
@@ -310,6 +314,13 @@ function Rocktil.Run.Publish {
     if( $WhatIf ) { return }
 
     & docker @binArgs # docker run --detach --publish $PortArg $Tag
+
+    if( $WithoutToast ) { return }
+
+    $Msg = "Launched ${ImageName} on localhost:${Port}"
+    New-BurntToastNotification -Text $Msg -ActivatedAction {
+        Start-Process "http://localhost:${Port}"
+    }
 }
 
 
