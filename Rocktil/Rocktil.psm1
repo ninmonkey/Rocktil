@@ -269,6 +269,13 @@ function Rocktil.Run.Publish {
     <#
     .SYNOPSIS
         Default mode that lets you run --detach and publish ports
+    .DESCRIPTION
+        By default it opens a toast, letting you know that it finished launching.
+        Clicking on it opens localhost with the port number
+
+        Default / implicit behavior:
+            - If the same image name is already running a copy, stop it
+            - after launching, show Toast notification. Click to open.
     .EXAMPLE
         # Using -WhatIf to test whether arguments are correct
         > Rocktil.Run.Publish -WhatIf -Port 8081 81 -ImageName git-logger
@@ -300,7 +307,9 @@ function Rocktil.Run.Publish {
         [switch] $WithoutToast,
 
         # Do Not run, display the command line arguments that would be used and quit.
-        [switch] $WhatIf
+        [switch] $WhatIf,
+
+        [switch] $NeverStopExistingContainers
     )
     [string] $portArg = "${Port}:${InternalPort}"
 
@@ -313,13 +322,29 @@ function Rocktil.Run.Publish {
 
     if( $WhatIf ) { return }
 
-    & docker @binArgs # docker run --detach --publish $PortArg $Tag
+    if( -not $NeverStopExistingContainers ) {
+        $existing =
+            docker container ls
+                | ?{ $_.Image -eq $ImageName }
+
+        if( $existing ) {
+            $null =
+                $existing
+                    | CountOf -Label "Stopping Containers of '$ImageName'"
+                    | docker container stop
+        }
+    }
+
+    $newId = & docker @binArgs # docker run --detach --publish $PortArg $Tag
+
+    "Bound ${ImageName} to: http://localhost:${Port} - $newId"
+        | WriteHost Info
 
     if( $WithoutToast ) { return }
 
     $Msg = "Launched ${ImageName} on localhost:${Port}"
     New-BurntToastNotification -Text $Msg -ActivatedAction {
-        Start-Process "http://localhost:${Port}"
+        Start-Process -FilePath "http://localhost:${Port}"
     }
 }
 
