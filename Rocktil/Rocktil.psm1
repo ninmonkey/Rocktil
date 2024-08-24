@@ -33,7 +33,7 @@ function GetColorPair {
         [string] $Theme = 'Info'
     )
 
-     $colorPair = switch( $Theme ) {
+    $colorPair = switch( $Theme ) {
         'Info' {
             @{  Fg = 'gray80'
                 Bg = 'gray30' }
@@ -82,6 +82,8 @@ function Rocktil.Container.Ls {
     <#
     .SYNOPSIS
         runs 'docker container ls'
+    .EXAMPLE
+        Rocktil.Container.Ls
     #>
     [Alias('Rk.Container.ls')]
     [CmdletBinding()]
@@ -169,6 +171,42 @@ function Rocktil.Container.FromName {
     }
     return $query
 }
+
+function Rocktil.Container.FromClosestId {
+    <#
+    .SYNOPSIS
+        lookup container id that matches the start of the full id
+    .EXAMPLE
+        > $newId = 'fa3194be001e9b27b6dc266d6efbfad64cdb0363bf365c9211ef091b3edd1d01'
+        > Rocktil.Container.FromClosestId $newId
+
+        ID           Image      State   Size
+        --           -----      -----   ----
+        fa3194be001e git-logger running 36.2kB
+    #>
+    # [Alias('Rk.Container.ls')]
+    [CmdletBinding()]
+    param(
+        [Alias('Id')]
+        [string] $FullId
+    )
+    # first try running
+    $query = docker container ls
+        | ?{ $FullId.StartsWith( $_.ID ) }
+
+    if( $query.count -eq 0 ) {
+        $query = docker container ls --all
+            | ?{ $FullId.StartsWith( $_.ID ) }
+    }
+
+    if( $Query.Count -eq 0 ) {
+        "Did not find a container that starts with: '$FullId'"
+        | Write-Host -fg $Fg1 -bg $fg2
+    }
+    'Found: ' | WriteHost -As Info
+    return $query
+}
+
 
 function Rocktil.Container.CopyTo {
     <#
