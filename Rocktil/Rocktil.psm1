@@ -28,7 +28,7 @@ function GetColorPair {
     #>
     param(
         [Parameter(Mandatory, Position = 0 )]
-        [ArgumentCompletions('Warn', 'Info')]
+        [ArgumentCompletions('Warn', 'Info', 'Dim')]
         [Alias('Color')]
         [string] $Theme = 'Info'
     )
@@ -37,6 +37,10 @@ function GetColorPair {
         'Info' {
             @{  Fg = 'gray80'
                 Bg = 'gray30' }
+        }
+        'Dim' {
+            @{  Fg = 'gray55'
+                Bg = 'gray15' }
         }
         'Warn' {
             @{  Fg = '#807560'
@@ -61,7 +65,7 @@ function WriteHost {
     #>
     param(
         [Parameter(Mandatory, Position = 0 )]
-        [ArgumentCompletions('Warn', 'Info')]
+        [ArgumentCompletions('Warn', 'Info', 'Dim')]
         [Alias('Color', 'As')]
         [string] $Theme = 'Info',
 
