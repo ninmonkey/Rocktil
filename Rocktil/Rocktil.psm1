@@ -7,10 +7,105 @@ $script:ModuleConfig = @{
     }
 }
 
+# Export-ModuleMember -Function/-Alias uses these patterns:
 [List[object]] $ExportMemberPatterns = @(
     'Rocktil.*'
     'Rk.*'
 )
+
+# private helper functions. later: refactor directories using modulebuilder
+function GetColorPair {
+    <#
+    .SYNOPSIS
+        Internal. select colors by theme or semantic names
+    .EXAMPLE
+        GetColorPair Warn|Ft -AutoSize
+
+        Name Value
+        ---- -----
+        Bg   #ebcb8b
+        Fg   #807560
+    #>
+    param(
+        [Parameter(Mandatory, Position = 0 )]
+        [ArgumentCompletions('Warn', 'Info')]
+        [Alias('Color')]
+        [string] $Theme = 'Info'
+    )
+
+     $colorPair = switch( $Theme ) {
+        'Info' {
+            @{  Fg = 'gray80'
+                Bg = 'gray30' }
+        }
+        'Warn' {
+            @{  Fg = '#807560'
+                Bg = '#ebcb8b' }
+        }
+        'Bad' {
+            @{  Fg = '#ff9795' }
+        }
+        default {
+            @{}
+        }
+    }
+    return $colorPair
+
+}
+function WriteHost {
+    <#
+    .SYNOPSIS
+        Internal. Sugar to write text with semantic naming for colors
+    .EXAMPLE
+        0..3 | WriteHost -As Info
+    #>
+    param(
+        [Parameter(Mandatory, Position = 0 )]
+        [ArgumentCompletions('Warn', 'Info')]
+        [Alias('Color', 'As')]
+        [string] $Theme = 'Info',
+
+        [Alias('Text')]
+        [Parameter(ValueFromPipeline)]
+        $InputObject
+    )
+    begin {
+
+    }
+    process {
+        $colorPair = GetColorPair -Theme $Theme
+        $InputObject | Write-Host @ColorPair
+    }
+}
+
+function Rocktil.Container.Ls {
+    <#
+    .SYNOPSIS
+        runs 'docker container ls'
+    #>
+    [Alias('Rk.Container.ls')]
+    [CmdletBinding()]
+    param()
+
+    docker container ls | CountOf -CountLabel 'Running: '
+}
+function Rocktil.Container.StopAll {
+    <#
+    .SYNOPSIS
+        runs 'docker container stop' on all running containers
+    #>
+    [Alias('Rk.Container.StopAll')]
+    [CmdletBinding()]
+    param()
+
+    docker container ls
+        | CountOf -CountLabel 'Running:'
+        | docker container stop
+
+    # hr
+    docker container ls
+        | OutNull -CountLabel 'Running After:'
+}
 
 function Rocktil.Container.First {
     <#
@@ -115,7 +210,7 @@ function Rocktil.Container.CopyTo {
         $sourceItem
         $destTemplate
     )
-    $logMsg = $binArgs | Join-String -op 'invoke => docker '
+    $logMsg = $binArgs | Join-String -sep ' ' -op 'invoke => docker '
 
 
     if( $WhatIf ) {
@@ -126,7 +221,6 @@ function Rocktil.Container.CopyTo {
     $logMsg | Write-Verbose
     docker @binArgs
 }
-
 
 $exportModuleMemberSplat = @{
     Function = @(
