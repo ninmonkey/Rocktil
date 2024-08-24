@@ -1,8 +1,21 @@
-{
+{   // 2024-08-24
 	"folders": [
 		{
 			"path": "."
 		}
     ],
-    "settings": {}
+    "settings": {},
+    "launch": {
+        "version": "0.2.0",
+        "configurations": [
+            {
+                "name": "Rocktil: Scratch.ps1",
+                "type": "PowerShell",
+                "request": "launch",
+                "script": "${workspaceFolder}/scratch_pad.ps1",
+                "cwd": "${workspaceFolder}"
+            }
+
+        ]
+    }
 }
