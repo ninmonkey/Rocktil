@@ -264,6 +264,62 @@ function Rocktil.Container.CopyTo {
     docker @binArgs
 }
 
+
+function Rocktil.Run.Publish {
+    <#
+    .SYNOPSIS
+        Default mode that lets you run --detach and publish ports
+    .EXAMPLE
+        # Using -WhatIf to test whether arguments are correct
+        > Rocktil.Run.Publish -WhatIf -Port 8081 81 -ImageName git-logger
+            Invoke Cmd => docker run --detach --publish 8081:81 git-logger
+
+        > Rocktil.Run.Publish -WhatIf -ImageName git-logger
+            Invoke Cmd => docker run --detach --publish 8080:80 git-logger
+    .EXAMPLE
+        Rk.Run.Publish -Port 8080 -ImageName git-logger
+        Rk.Run.Publish -Port 8081 80 -ImageName pssvg
+    #>
+    [Alias('Rk.Run.Publish')]
+    [CmdletBinding()]
+    param(
+        # The exposed / external port
+        [ArgumentCompletions( 8080, 8081, 8082, 9999 )]
+        [int] $Port = 8080,
+
+        # mapped port
+        [ArgumentCompletions( 80, 81, 8080 )]
+        [int] $InternalPort = 80,
+
+        # Container Image Name
+        [ArgumentCompletions('git-logger', 'git-logger-pwsh', 'pssvg')]
+        [string] $ImageName,
+
+        # Do Not run, display the command line arguments that would be used and quit.
+        [switch] $WhatIf
+    )
+    [string] $portArg = "${Port}:${InternalPort}"
+
+    [List[Object]] $binArgs = @(
+        'run', '--detach', '--publish', $PortArg, $Tag, $ImageName )
+
+    $binArgs
+        | Join-String -op 'Invoke Cmd => docker ' -sep ' '
+        | WriteHost -As Dim
+
+    if( $WhatIf ) { return }
+
+    & docker @binArgs # docker run --detach --publish $PortArg $Tag
+}
+
+
+
+
+
+
+
+
+
 $exportModuleMemberSplat = @{
     Function = @(
         $ExportMemberPatterns
